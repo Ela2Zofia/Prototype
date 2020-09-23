@@ -2,19 +2,21 @@
 
 public class PlayerControl : MonoBehaviour
 {
-    private const float MAX_VELOCITY = 8f;
-    private const float MAX_SLIDING_SPEED = 20f;
+    private const float WALKING_SPEED = 8f;
+    private const float RUNNING_SPEED = 14;
+    private const float MAX_SLIDING_SPEED = 25f;
+    private const float WALL_RUN_SPEED = 25f;
 
-    // allowed user input
-    [Range(0.1f, 100.0f)] public float senstivity = 2.0f;
-    public bool invertX = false;
-    public bool invertY = false;
+
     public bool toggleCrouch = false;
     public KeyCode crouchKey = KeyCode.C;
     public KeyCode runKey = KeyCode.LeftShift;
 
-    private Rigidbody rb;
-    private CapsuleCollider capcol;
+    Rigidbody rb;
+    CapsuleCollider capcol;
+
+
+    private ForceMode mode = ForceMode.Force;
 
     // esc to pause the game
     private bool gamePause = false;
@@ -27,23 +29,33 @@ public class PlayerControl : MonoBehaviour
     private float horizontal;
 
     // speed control
-    private float speedForce = 1000.0f;
-    private float max_velocity = MAX_VELOCITY;
-
+    private float speedForce = 30.0f;
+    private float max_velocity = WALKING_SPEED;
+    
+    // friction control
+    private bool grounded = true;
+    private float frictionCoefficient = 1.2f;
+    private float stoppingForce = 40f;
+    
     // jump & double jump boost control
-    private float jumpForce = 550f;
+    private float jumpForce = 800f;
     private int jumpCount = 2;
-    private float doubelJumpCoefficient = 0.3f;
+    private float doubelJumpCoefficient = 0.6f;
     private bool jump = false;
 
     // get the last collided object so player can't keep refreshing jump
     private GameObject lastCollided;
+    
+    // crouch
+    private bool isCrouching = false;
+    private bool slide = false;
+    private float slideForce = 500f;
+    private float crouchMultiplier = 1f;
+    private float defaulfHeight;
 
-    // friction control
-    private bool grounded = true;
-    private float frictionCoefficient = 1.1f;
-
-
+    // run
+    private bool isRunning = false;
+    private float runMultiplier = 1f;
 
     // wall run
     private bool isWallRunning = false;
@@ -52,33 +64,25 @@ public class PlayerControl : MonoBehaviour
     private float wallRunCD = 0.4f;
     private float exitTime;
 
-    // crouch
-    private bool isCrouching = false;
-    private bool slide = false;
-    private float slideForce = 400f;
-    private float slideStoppingForce = 1000f;
-    private float crouchMultiplier = 1f;
-    private float defaulfHeight;
+    
 
-    // run
-    private bool isRunning = false;
-
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody>();
+        capcol = GetComponent<CapsuleCollider>();
+    }
 
     void Start()
     {
-        rb = GetComponent<Rigidbody>();
         rb.constraints = RigidbodyConstraints.FreezeRotation;
-        capcol = GetComponent<CapsuleCollider>();
         defaulfHeight = capcol.height;
         // keep the cursor at the centre of the screen and invisible
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
-
     void Update()
     {
-        if (!gamePause) {
-            HorizontalMouseLook();
+        if (!gamePause) { 
             MovementInputHandle();
         }
         cursorLock();
@@ -115,7 +119,6 @@ public class PlayerControl : MonoBehaviour
         {
             grounded = false;
         }
-        exitTime = Time.time;
 
     }
 
@@ -197,27 +200,13 @@ public class PlayerControl : MonoBehaviour
 
     }
 
-    // Handles horizontal look input
-    void HorizontalMouseLook()
-    {
-        float horizontal = senstivity * Input.GetAxis("Mouse X");
-        
-        if (invertX)
-        {
-            horizontal = -horizontal;
-        }
-
-
-        transform.eulerAngles = new Vector3(0f,  transform.eulerAngles.y+horizontal, 0f);
-
-    }
-
 
     // Handles all the inputs from keyboard
     void Movement()
     {
-        float airMultiplier = 1f;
-
+        float airMultiplierHorizontal = 1f;
+        float airMultiplierForward = 1f;
+        float runHorizontalLimiter = 1f;
         Crouch();
         if (!isCrouching)
         {   
@@ -228,22 +217,19 @@ public class PlayerControl : MonoBehaviour
         // if in the air, limit player's control over movement
         if (!grounded && !isWallRunning)
         {
-            airMultiplier = 0.5f;
+            airMultiplierForward = 0.1f;
+            airMultiplierHorizontal = 0.5f;
+        }
+        if (isRunning)
+        {
+            runHorizontalLimiter = 0.4f;
         }
 
         // check if the current velocity in local space exceeds max velocity, if so, do not allow input force anymore
         lookVelocity = transform.InverseTransformDirection(rb.velocity);
-        
-        if ((lookVelocity.x > max_velocity && horizontal > 0)||(lookVelocity.x < -max_velocity && horizontal < 0))
-        {
-            horizontal = 0.0000001f;
-            
-        }
-        if ((lookVelocity.z > max_velocity && forward > 0)||(lookVelocity.z < -max_velocity && forward < 0))
-        {
-            forward = 0.0000001f;
-        }
-        rb.AddForce((forward * transform.forward+horizontal * transform.right).normalized * speedForce * Time.deltaTime*airMultiplier*crouchMultiplier);
+        rb.AddForce(horizontal * transform.right * speedForce * airMultiplierHorizontal * crouchMultiplier*runHorizontalLimiter, mode);
+        rb.AddForce(forward * transform.forward * speedForce * airMultiplierForward * crouchMultiplier * runMultiplier, mode);
+
     }
 
 
@@ -256,11 +242,11 @@ public class PlayerControl : MonoBehaviour
             {
                 DoubleJumpBoost();
             }
-            rb.AddForce(Vector3.up * jumpForce);
+            rb.AddForce(Vector3.up * jumpForce, mode);
             
             if (isWallRunning)
             {
-                rb.AddForce(collisionSurfaceNorm*500f);
+                rb.AddForce(collisionSurfaceNorm*500f, mode);
             }
             jump = false;
             jumpCount--;
@@ -269,13 +255,15 @@ public class PlayerControl : MonoBehaviour
 
     void DoubleJumpBoost() 
     {
-        if (forward != 0)
+        if ((forward > 0 && lookVelocity.z < 0) || (forward < 0 && lookVelocity.z > 0))
         {
-            rb.AddForce(transform.forward * Mathf.Sign(forward) * jumpForce * doubelJumpCoefficient);
+            rb.velocity = Vector3.zero;
+            rb.AddForce(transform.forward * Mathf.Sign(forward) * jumpForce * doubelJumpCoefficient, mode);
         }
+        
         if (horizontal != 0)
         {
-            rb.AddForce(transform.right * Mathf.Sign(horizontal) * jumpForce * doubelJumpCoefficient*0.5f);
+            rb.AddForce(transform.right * Mathf.Sign(horizontal) * jumpForce * doubelJumpCoefficient * 0.8f, mode);
         }
     }
 
@@ -290,29 +278,28 @@ public class PlayerControl : MonoBehaviour
         if (isCrouching == true)
         {
             capcol.height = defaulfHeight * 0.5f;
-            max_velocity = MAX_VELOCITY * 0.5f;
+            max_velocity = WALKING_SPEED * 0.5f;
             crouchMultiplier = 0.5f;
-            if (rb.velocity.magnitude > 1f)
+            if (rb.velocity.magnitude > 10f && rb.velocity.magnitude < MAX_SLIDING_SPEED)
             {
                 if (grounded && slide)
                 {
-                    rb.AddForce(transform.forward * slideForce);
+                    rb.AddForce(transform.forward * slideForce, mode);
                     slide = false;
                 }
             }
             // gain speed on a slope
             float slopeAngle = Mathf.Abs(Vector3.Angle(collisionSurfaceNorm, Vector3.up));
-            Debug.Log(slopeAngle);
-            if (slopeAngle < 60 && slopeAngle > 5 && grounded && rb.velocity.magnitude < MAX_SLIDING_SPEED)
+            if (slopeAngle <= 60 && slopeAngle > 5 && grounded && rb.velocity.magnitude < MAX_SLIDING_SPEED)
             {
-                rb.AddForce(Vector3.down * 200f * slopeAngle*Time.deltaTime);
+                rb.AddForce((Vector3.down + Vector3.down/Mathf.Tan(slopeAngle * Mathf.Deg2Rad)) * 10f);
             }
             
         }
         else
         {
             capcol.height = defaulfHeight;
-            max_velocity = MAX_VELOCITY;
+            max_velocity = WALKING_SPEED;
             crouchMultiplier = 1f;
             
         }
@@ -322,11 +309,13 @@ public class PlayerControl : MonoBehaviour
     {
         if (isRunning)
         {
-            max_velocity = MAX_VELOCITY * 2f;
+            max_velocity = RUNNING_SPEED;
+            runMultiplier = 0.8f*RUNNING_SPEED/(lookVelocity.magnitude+1f);
         }
         else
         {
-            max_velocity = MAX_VELOCITY;
+            max_velocity = WALKING_SPEED;
+            runMultiplier = 1f;
         }
     }
 
@@ -338,7 +327,7 @@ public class PlayerControl : MonoBehaviour
         }
 
        
-        rb.AddForce(Vector3.up * 9.5f);
+        rb.AddForce(Vector3.up * 18f);
         
     }
     void StopWallRun()
@@ -349,42 +338,36 @@ public class PlayerControl : MonoBehaviour
     // simulate friction and drag since the default system's feel is not that great
     void FrictionControl()  
     {
-        // slowdown sliding
-        if (isCrouching && rb.velocity.magnitude > max_velocity && grounded)
+        // slowdown
+        if (rb.velocity.magnitude > max_velocity && grounded)
         {
-            rb.AddForce(slideStoppingForce * Time.deltaTime * -rb.velocity.normalized);
-            return;
+            rb.AddForce(stoppingForce * -rb.velocity.normalized, mode);
         }
         
-
         // simulation stoping friction
         if (Mathf.Pow(rb.velocity.x, 2) + Mathf.Pow(rb.velocity.z, 2) != 0)
         {
-            if((forward == 0 || (lookVelocity.z > 0 && forward < 0) || (lookVelocity.z < 0 && forward > 0)) && (grounded||isWallRunning))
+            if((forward == 0 || (lookVelocity.z > 0 && forward < 0) || (lookVelocity.z < 0 && forward > 0)) && grounded)
             {
-                rb.AddForce(transform.forward * -lookVelocity.z * speedForce * Time.deltaTime * frictionCoefficient);
+                rb.AddForce(transform.forward * -lookVelocity.z * speedForce * frictionCoefficient, mode);
             }
             else if((forward == 0 || (lookVelocity.z > 0 && forward < 0) || (lookVelocity.z < 0 && forward > 0)) && !grounded)
             {
-                rb.AddForce(transform.forward * -lookVelocity.z * speedForce * Time.deltaTime * frictionCoefficient* 0.01f);
+                rb.AddForce(transform.forward * -lookVelocity.z * speedForce * frictionCoefficient* 0.01f, mode);
             }
             
-            if ((horizontal == 0 || (lookVelocity.x > 0 && horizontal < 0) || (lookVelocity.x < 0 && horizontal > 0)) && (grounded||isWallRunning))
+            if ((horizontal == 0 || (lookVelocity.x > 0 && horizontal < 0) || (lookVelocity.x < 0 && horizontal > 0)) && grounded)
             {
-                rb.AddForce(transform.right * -lookVelocity.x * speedForce * Time.deltaTime * frictionCoefficient);
+                rb.AddForce(transform.right * -lookVelocity.x * speedForce * frictionCoefficient, mode);
             }
             
             else if((horizontal == 0 || (lookVelocity.x > 0 && horizontal < 0) || (lookVelocity.x < 0 && horizontal > 0)) && !grounded)
             {
-                rb.AddForce(transform.right * -lookVelocity.x * speedForce * Time.deltaTime * frictionCoefficient*0.01f);
+                rb.AddForce(transform.right * -lookVelocity.x * speedForce * frictionCoefficient*0.01f, mode);
             }
            
         }
-        // limit diagonla velocity by giving it an opposite force witha magnitude relative to its speed (moving friction)
-        if (Mathf.Sqrt((Mathf.Pow(rb.velocity.x, 2) + Mathf.Pow(rb.velocity.z, 2))) > max_velocity && grounded)
-        {
-            rb.AddForce(-rb.velocity * speedForce * 0.35f * Time.deltaTime);
-        }
+        
     }
    
 
