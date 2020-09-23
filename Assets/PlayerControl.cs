@@ -1,5 +1,7 @@
-﻿using System.Data.Common;
-using System.IO.MemoryMappedFiles;
+﻿/**
+* Rigidbody based FPS player movement script, heavily inspired by "Titanfall 2"(Respawn Entertainment, a Electronic Arts studio) movement mechanics
+* Created by Jiawei(Derrick) Li
+*/
 using UnityEngine;
 
 public class PlayerControl : MonoBehaviour
