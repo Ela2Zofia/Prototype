@@ -115,6 +115,7 @@ public class PlayerControl : MonoBehaviour
             ResetJump();
             grounded = true;
         }
+        // check a bunch of requirement for initaiting a wall run: surface normal angle, if grounded, if input, if the same wall is ran again
         if (Mathf.Abs(Vector3.Dot(collisionSurfaceNorm, Vector3.up)) < 0.5f && !grounded && (horizontal != 0 || forward != 0) 
             && ((collision.gameObject.GetInstanceID() != lastCollided) || Time.time - exitTime > wallRunCD))
         {
@@ -178,7 +179,6 @@ public class PlayerControl : MonoBehaviour
         }
     }
 
-
     // handle keyboard or controller input
     void MovementInputHandle()
     {
@@ -228,7 +228,6 @@ public class PlayerControl : MonoBehaviour
 
     }
 
-
     // Handles all the inputs from keyboard
     void Movement()
     {
@@ -254,6 +253,7 @@ public class PlayerControl : MonoBehaviour
                 airMultiplierForward = 0.1f;
                 airMultiplierHorizontal = 0.2f;
             }
+            // limit horizontal movement when running for realism
             if (isRunning)
             {
                 runHorizontalLimiter = 0.3f;
@@ -284,11 +284,13 @@ public class PlayerControl : MonoBehaviour
 
         rb.velocity = Vector3.zero;
 
+        // check if the wall we hit is on the right with cross product & limit camera look angle if wall running
         if (Vector3.Dot(transform.forward, Vector3.Cross(Vector3.down, collisionSurfaceNorm)) > 0.6f)
         {
             rb.velocity = Vector3.Cross(Vector3.down, collisionSurfaceNorm).normalized * WALL_RUN_SPEED;
             wallPosition = 1;
         }
+        // check if the wall we hit is on the left with cross product & limit camera look angle if wall running
         else if (Vector3.Dot(transform.forward, Vector3.Cross(Vector3.up, collisionSurfaceNorm)) > 0.6f)
         {
             rb.velocity = Vector3.Cross(Vector3.up, collisionSurfaceNorm).normalized * WALL_RUN_SPEED;
@@ -299,7 +301,7 @@ public class PlayerControl : MonoBehaviour
             isWallRunning = false;
             exitTime = Time.time;
         }
-
+        // add a force to stick the player to the wall
         rb.AddForce(-collisionSurfaceNorm * 0.1f);
     }
 
@@ -352,16 +354,18 @@ public class PlayerControl : MonoBehaviour
     {
         if (grounded)
         {
+            // sliding friction
             if (isSliding && rb.velocity.magnitude < MAX_SPEED)
             {
                 rb.AddForce(stoppingForce * -rb.velocity.normalized * slideMultiplier, mode);
                 return;
             }
+            // walking & running friction
             if (rb.velocity.magnitude > max_velocity)
             {
                rb.AddForce(stoppingForce * -rb.velocity.normalized * (rb.velocity.magnitude - max_velocity + 1), mode);
             }
-            
+            // stopping friction
             if (Mathf.Pow(rb.velocity.x, 2) + Mathf.Pow(rb.velocity.z, 2) != 0)
             {
                 if ((forward == 0 || (lookVelocity.z > 0 && forward < 0) || (lookVelocity.z < 0 && forward > 0)) && grounded)
@@ -404,6 +408,7 @@ public class PlayerControl : MonoBehaviour
 
     void DoubleJumpBoost() 
     {
+        // Titanfall style opposite boost
         if ((forward > 0 && lookVelocity.z < 0) || (forward < 0 && lookVelocity.z > 0))
         {
             rb.velocity = Vector3.zero;
@@ -428,8 +433,7 @@ public class PlayerControl : MonoBehaviour
         {
             capcol.height = defaulfHeight * 0.5f;
             max_velocity = WALKING_SPEED * 0.5f;
-            Slide();
-            
+            Slide(); 
         }
         else
         {
