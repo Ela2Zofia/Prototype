@@ -44,7 +44,7 @@ public class PlayerRotate : MonoBehaviour
         // Keep the camera from going upside dow
         camVerticalAngle = Mathf.Clamp(camVerticalAngle, -90f, 90f);
 
-        cam.localEulerAngles = new Vector3(camVerticalAngle, 0f, 0f);
+        cam.localEulerAngles = new Vector3(camVerticalAngle, 0f, cam.localEulerAngles.z);
 
         rb.rotation *= Quaternion.Euler(0f, horizontal, 0f);
 

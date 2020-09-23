@@ -1,4 +1,5 @@
 ﻿using System.Data.Common;
+using System.IO.MemoryMappedFiles;
 using UnityEngine;
 
 public class PlayerControl : MonoBehaviour
@@ -6,14 +7,16 @@ public class PlayerControl : MonoBehaviour
     private const float WALKING_SPEED = 4f;
     private const float RUNNING_SPEED = 6f;
     private const float MAX_SLIDING_SPEED = 9.5f;
-    private const float WALL_RUN_SPEED = 8.3f;
     private const float MAX_SPEED = 12.5f;
+    private const float WALL_RUN_TIME = 2f;
+    private const float WALL_RUN_SPEED = 8.3f;
 
-
+    [Range(60f, 120f)] public float FieldOfView = 103f;
     public bool toggleCrouch = false;
     public KeyCode crouchKey = KeyCode.C;
     public KeyCode runKey = KeyCode.LeftShift;
-
+    public Transform cam;
+    public Camera MainCam;
     Rigidbody rb;
     CapsuleCollider capcol;
 
@@ -42,15 +45,14 @@ public class PlayerControl : MonoBehaviour
     // jump & double jump boost control
     private float jumpForce = 7f;
     private int jumpCount = 2;
-    private float doubelJumpCoefficient = 0.6f;
+    private float doubelJumpCoefficient = 0.4f;
     private bool jump = false;
 
     // get the last collided object so player can't keep refreshing jump
-    private GameObject lastCollided;
+    private int lastCollided;
     
     // crouch
     private bool isCrouching = false;
-    private float crouchMultiplier = 1f;
     private float defaulfHeight;
     // slide
     private bool slide = false;
@@ -62,13 +64,17 @@ public class PlayerControl : MonoBehaviour
     private bool isRunning = false;
 
     // wall run
-    private bool isWallRunning = false;
-    private bool wallRunReady = true;
     private Vector3 collisionSurfaceNorm;
-    private float wallRunCD = 0.4f;
-    private float exitTime;
+    private bool isWallRunning = false;
+    private float wallRunCD = 1f;
+    private float startTime;
+    private float exitTime = 0f;
+    private int wallPosition = 0; // 1 is left, -1 is right, 0 is no wall
+    private float camTiltAngle = 15f;
+    private float currentCamAngle = 0;
 
-    
+    // FoV
+    private float fovMultiplier = 1.13f;
 
     void Awake()
     {
@@ -78,6 +84,7 @@ public class PlayerControl : MonoBehaviour
 
     void Start()
     {
+        MainCam.fieldOfView = FieldOfView;
         rb.constraints = RigidbodyConstraints.FreezeRotation;
         defaulfHeight = capcol.height;
         // keep the cursor at the centre of the screen and invisible
@@ -87,7 +94,9 @@ public class PlayerControl : MonoBehaviour
     void Update()
     {
         if (!gamePause) { 
+            WallRunCamTilt();
             MovementInputHandle();
+            FoVControl();
         }
         cursorLock();
     }
@@ -106,6 +115,17 @@ public class PlayerControl : MonoBehaviour
             ResetJump();
             grounded = true;
         }
+        if (Mathf.Abs(Vector3.Dot(collisionSurfaceNorm, Vector3.up)) < 0.5f && !grounded && (horizontal != 0 || forward != 0) 
+            && ((collision.gameObject.GetInstanceID() != lastCollided) || Time.time - exitTime > wallRunCD))
+        {
+            startTime = Time.time;
+            isWallRunning = true;
+        }
+        else
+        {
+            exitTime = Time.time;
+            isWallRunning = false;
+        }
     }
 
     void OnCollisionStay(Collision collision)
@@ -114,16 +134,20 @@ public class PlayerControl : MonoBehaviour
         {
             grounded = true;
         }
+        
     }
 
     void OnCollisionExit(Collision collision)
     {
-        lastCollided = collision.gameObject;
+        lastCollided = collision.gameObject.GetInstanceID();
         if (collision.collider.tag == "Ground")
         {
             grounded = false;
         }
-
+        if (isWallRunning)
+        {
+            isWallRunning = false;
+        }
     }
 
 
@@ -212,29 +236,115 @@ public class PlayerControl : MonoBehaviour
         float airMultiplierForward = 1f;
         float runHorizontalLimiter = 1f;
         lookVelocity = transform.InverseTransformDirection(rb.velocity);
-        Crouch();
-        
-        if (!isCrouching)
-        {   
-            Run();
-        } 
-        Jump();
-        
-        // if in the air, limit player's control over movement
-        if (!grounded && !isWallRunning)
+
+        if (!isWallRunning)
         {
-            airMultiplierForward = 0.1f;
-            airMultiplierHorizontal = 0.2f;
+            wallPosition = 0;
+            rb.useGravity = true;
+            Crouch();
+            if (!isCrouching)
+            {   
+               Run();
+            } 
+            Jump();
+        
+            // if in the air, limit player's control over movement
+            if (!grounded)
+            {
+                airMultiplierForward = 0.1f;
+                airMultiplierHorizontal = 0.2f;
+            }
+            if (isRunning)
+            {
+                runHorizontalLimiter = 0.3f;
+            }
+            
+            rb.AddForce(forward * transform.forward * speedForce * airMultiplierForward, mode);
+            rb.AddForce(horizontal * transform.right * speedForce * airMultiplierHorizontal * runHorizontalLimiter, mode);
         }
-        if (isRunning)
+        else
         {
-            runHorizontalLimiter = 0.3f;
+            rb.useGravity = false;
+            StartWallRun();
+            Jump();
+            StopWallRun();
         }
         
-        rb.AddForce(forward * transform.forward * speedForce * airMultiplierForward, mode);
-        rb.AddForce(horizontal * transform.right * speedForce * airMultiplierHorizontal * runHorizontalLimiter, mode);
         
 
+    }
+
+    void StartWallRun()
+    {
+        if (grounded)
+        {
+            isWallRunning = false;
+        }
+        ResetJump();
+
+        rb.velocity = Vector3.zero;
+
+        if (Vector3.Dot(transform.forward, Vector3.Cross(Vector3.down, collisionSurfaceNorm)) > 0.6f)
+        {
+            rb.velocity = Vector3.Cross(Vector3.down, collisionSurfaceNorm).normalized * WALL_RUN_SPEED;
+            wallPosition = 1;
+        }
+        else if (Vector3.Dot(transform.forward, Vector3.Cross(Vector3.up, collisionSurfaceNorm)) > 0.6f)
+        {
+            rb.velocity = Vector3.Cross(Vector3.up, collisionSurfaceNorm).normalized * WALL_RUN_SPEED;
+            wallPosition = -1;
+        }
+        else
+        {
+            isWallRunning = false;
+            exitTime = Time.time;
+        }
+
+        rb.AddForce(-collisionSurfaceNorm * 0.1f);
+    }
+
+    void StopWallRun()
+    {
+        if (Time.time - startTime > WALL_RUN_TIME)
+        {
+            isWallRunning = false;
+            rb.useGravity = true;
+            rb.AddForce(collisionSurfaceNorm * 0.01f);
+            exitTime = Time.time;
+        }
+    }
+
+    void WallRunCamTilt()
+    {
+        float change = 0;
+        
+        if (wallPosition == -1) // right
+        {
+            change = (camTiltAngle - currentCamAngle) * Time.deltaTime * 4f;
+        }
+        else if (wallPosition == 1) // left
+        {
+            change = (-camTiltAngle - currentCamAngle) * Time.deltaTime * 4f;
+        }
+        else
+        {         
+            change = -currentCamAngle * Time.deltaTime * 4f;
+
+        }
+        currentCamAngle += change;
+        cam.localRotation = Quaternion.Euler(cam.localEulerAngles.x, 0f, currentCamAngle);
+    }
+
+    void FoVControl()
+    {
+        if (isSliding || isWallRunning)
+        {
+            MainCam.fieldOfView += (FieldOfView * fovMultiplier - MainCam.fieldOfView) * Time.deltaTime * 3f;
+        }
+        else if (grounded)
+        {
+            MainCam.fieldOfView -= (MainCam.fieldOfView - FieldOfView) * Time.deltaTime * 3f;
+        }
     }
 
     // simulate friction and drag since the default system's feel is not that great
@@ -242,7 +352,7 @@ public class PlayerControl : MonoBehaviour
     {
         if (grounded)
         {
-            if (isSliding && rb.velocity.magnitude <= MAX_SPEED)
+            if (isSliding && rb.velocity.magnitude < MAX_SPEED)
             {
                 rb.AddForce(stoppingForce * -rb.velocity.normalized * slideMultiplier, mode);
                 return;
@@ -264,28 +374,31 @@ public class PlayerControl : MonoBehaviour
                 }
             }
         }
-        
-        
     }
     void Jump()
     {
         if (jump && jumpCount > 0)
         {
-            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-            if (jumpCount == 1)
-            {
-                DoubleJumpBoost();
-            }
-            rb.AddForce(Vector3.up * jumpForce, mode);
-            
             if (isWallRunning)
             {
-                rb.AddForce(collisionSurfaceNorm * 5f, mode);
-                rb.AddForce(transform.forward * 5f, mode);
+                isWallRunning = false;
+                rb.useGravity = true;
+                rb.AddForce(collisionSurfaceNorm * 1f, mode);
+                rb.AddForce(transform.forward * 1f, mode);
             }
-
+            else
+            {
+                rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+                if (jumpCount == 1)
+                {
+                    DoubleJumpBoost();
+                }
+                
+            }
+            rb.AddForce(Vector3.up * jumpForce, mode);
             jump = false;
             jumpCount--;
+            
         }
     }
 
@@ -359,7 +472,7 @@ public class PlayerControl : MonoBehaviour
         
         if (slopeAngle <= 60 && slopeAngle > 5 && grounded && isSliding && rb.velocity.magnitude <= MAX_SLIDING_SPEED)
         {   
-            rb.AddForce((Vector3.down + transform.forward / Mathf.Tan(slopeAngle * Mathf.Deg2Rad)).normalized * 0.5f, mode);
+            rb.AddForce((Vector3.down + transform.forward / Mathf.Tan(slopeAngle * Mathf.Deg2Rad)).normalized * 0.3f, mode);
         }
     }
 
@@ -374,25 +487,5 @@ public class PlayerControl : MonoBehaviour
             max_velocity = WALKING_SPEED;
         }
     }
-
-    void StartWallRun()
-    {
-        if (grounded)
-        {
-            isWallRunning = false;
-        }
-
-       
-        rb.AddForce(Vector3.up * 18f);
-        
-    }
-    void StopWallRun()
-    {
-        ResetJump();
-    }
-
- 
-   
-
 
 }

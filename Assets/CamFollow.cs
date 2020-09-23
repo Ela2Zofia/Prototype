@@ -9,6 +9,6 @@ public class CamFollow : MonoBehaviour
     void LateUpdate()
     {
         transform.position = playerCamera.position;
-        transform.eulerAngles = new Vector3(playerCamera.eulerAngles.x, player.eulerAngles.y, player.rotation.z);
+        transform.eulerAngles = new Vector3(playerCamera.eulerAngles.x, player.eulerAngles.y, playerCamera.eulerAngles.z);
     }
 }
