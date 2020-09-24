@@ -72,7 +72,7 @@ public class PlayerControl : MonoBehaviour
     private float startTime;
     private float exitTime = 0f;
     private int wallPosition = 0; // 1 is left, -1 is right, 0 is no wall
-    private float camTiltAngle = 15f;
+    private float camTiltAngle = 10f;
     private float currentCamAngle = 0;
 
     // FoV
@@ -126,7 +126,6 @@ public class PlayerControl : MonoBehaviour
         }
         else
         {
-            exitTime = Time.time;
             isWallRunning = false;
         }
     }
@@ -137,6 +136,7 @@ public class PlayerControl : MonoBehaviour
         {
             grounded = true;
         }
+
         
     }
 
@@ -301,7 +301,6 @@ public class PlayerControl : MonoBehaviour
         else
         {
             isWallRunning = false;
-            exitTime = Time.time;
         }
         // add a force to stick the player to the wall
         rb.AddForce(-collisionSurfaceNorm * 0.1f);
@@ -389,7 +388,8 @@ public class PlayerControl : MonoBehaviour
             {
                 isWallRunning = false;
                 rb.useGravity = true;
-                rb.AddForce(collisionSurfaceNorm * 1f, mode);
+                exitTime = Time.time;
+                rb.AddForce(collisionSurfaceNorm * 2f, mode);
                 rb.AddForce(transform.forward * 1f, mode);
             }
             else
