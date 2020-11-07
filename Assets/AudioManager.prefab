@@ -1,0 +1,128 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3700455627138947357
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3700455627138947347}
+  - component: {fileID: 3700455627138947356}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3700455627138947347
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3700455627138947357}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 2.117, y: 0.711, z: 0.348}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3700455627138947356
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3700455627138947357}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f6a53dad5ca7674ea770fd72bea0240, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+  sounds:
+  - name: FireSound
+    clip: {fileID: 8300000, guid: 5c8c8d1aa6226a34491a0fec4bf7414e, type: 3}
+    volume: 0.5
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 0
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}
+  - name: JumpSound
+    clip: {fileID: 8300000, guid: 171c20233bba67940b5b9cc49e75ff3b, type: 3}
+    volume: 0.1
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 0
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}
+  - name: WallRunSound
+    clip: {fileID: 8300000, guid: 128e30d12bebe93499619e831efa42ee, type: 3}
+    volume: 0.8
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 0
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}
+  - name: SlideSound
+    clip: {fileID: 8300000, guid: 43a0c55a4d9914e4485584cb6ebcb521, type: 3}
+    volume: 0.5
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 0
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}
+  - name: FootStepSound
+    clip: {fileID: 8300000, guid: cc46eb5d2bca3cd499959a2569a1e2a8, type: 3}
+    volume: 0.2
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 1
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}
+  - name: ReloadSound
+    clip: {fileID: 8300000, guid: 9243c20d00f67cb41acedaa6d7234e00, type: 3}
+    volume: 0.1
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 0
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}
+  - name: EnemyHitSound
+    clip: {fileID: 8300000, guid: bdfb2fb04b17944418412a71f81bb5b0, type: 3}
+    volume: 0.1
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 0
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}
+  - name: BulletImpactPlayer
+    clip: {fileID: 8300000, guid: f7724aa8e65467c40a955a02dde42704, type: 3}
+    volume: 0.2
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 0
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}
+  - name: EnemyGunshotSound
+    clip: {fileID: 8300000, guid: a6f4ec28d6a4371489ab55c017464226, type: 3}
+    volume: 0.1
+    volumeVariance: 0
+    pitch: 1
+    pitchVariance: 0
+    loop: 0
+    mixerGroup: {fileID: 24300002, guid: fab8ed0a714d34f48943272a9a0bdf7d, type: 2}
+    source: {fileID: 0}

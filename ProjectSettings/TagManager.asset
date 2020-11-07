@@ -6,6 +6,16 @@ TagManager:
   tags:
   - Ground
   - Wall
+  - SoldierEnemy
+  - BasicEnemy
+  - EnemyGroup1
+  - DoorBlock1
+  - DoorBlock2
+  - EnemyGroup2
+  - DoorBlock3
+  - EnemyGroup3
+  - DoorBlock
+  - EnemyGroup
   layers:
   - Default
   - TransparentFX
@@ -16,10 +26,10 @@ TagManager:
   - 
   - 
   - Weapon
-  - 
-  - 
-  - 
-  - 
+  - PostProcessing
+  - Enemy
+  - Hitmarker
+  - Bullet
   - 
   - 
   - 
